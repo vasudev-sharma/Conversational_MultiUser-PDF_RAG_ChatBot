@@ -15,7 +15,6 @@ try:
         load_dotenv(".env")
 except Exception as e:
         raise Exception("Please create a .env file with your OpenAI API key") from e
-# API_KEY = "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"
 #function to load the vectordatabase
 def load_knowledgeBase():
         embeddings=OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY"))

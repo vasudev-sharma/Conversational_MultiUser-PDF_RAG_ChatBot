@@ -27,3 +27,8 @@ Before running this script, ensure that you have both `minikube` and `Docker` on
 2. `minikube service my-app --url` and click on the url
 
 ![alt text](images/streamlit.png)
+
+
+# Monitoring Setup
+
+# Performance Optimization
