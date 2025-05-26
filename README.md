@@ -24,11 +24,15 @@ Before running this script, ensure that you have both `minikube` and `Docker` on
 
 ## Testing
 1. Expose the service port: kubectl expose deployment my-app --type=NodePort --port=8501`
-2. `minikube service my-app --url` and click on the url
+2. `minikube service my-app --url` and click on the url / it will generate url like: `http://127.0.0.1:49154`
+3. `curl <url>` / click on url on local machine
 
 ![alt text](images/streamlit.png)
 
 
 # Monitoring Setup
+1. Langchain Tracing (Langsmith): Ensure you have added your langsmith API key and tracing setup in `.env` file.
+2, 
+
 
 # Performance Optimization
