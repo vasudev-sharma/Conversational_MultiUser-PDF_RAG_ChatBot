@@ -15,6 +15,8 @@ try:
         load_dotenv(".env")
 except Exception as e:
         raise Exception("Please create a .env file with your OpenAI API key") from e
+
+
 #function to load the vectordatabase
 def load_knowledgeBase():
         embeddings=OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -56,11 +58,17 @@ if __name__=='__main__':
         
         if(query):
                 #getting only the chunks that are similar to the query for llm to produce the output
-                similar_embeddings=knowledgeBase.similarity_search(query)
-                similar_embeddings=FAISS.from_documents(documents=similar_embeddings, embedding=OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY")))
+                
+                # Not to build
+                retriever = knowledgeBase.as_retriever()
+                docs = retriever.get_relevant_documents(query)
+
+                # Load the vector store only once and use it for similarity search for query
+                # similar_embeddings=knowledgeBase.similarity_search(query)
+                # similar_embeddings=FAISS.from_documents(documents=similar_embeddings, embedding=OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY")))
                 
                 #creating the chain for integrating llm,prompt,stroutputparser
-                retriever = similar_embeddings.as_retriever()
+                # retriever = similar_embeddings.as_retriever()
                 rag_chain = (
                         {"context": retriever | format_docs, "question": RunnablePassthrough()}
                         | prompt

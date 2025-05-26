@@ -63,7 +63,7 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 
 ## LLM Monitoring and Tracing
 1. Langchain Tracing (Langsmith): Ensure you have added your langsmith API key and tracing setup in `.env` file.
-
+![alt text](images/Langchain.png)
 
 
 

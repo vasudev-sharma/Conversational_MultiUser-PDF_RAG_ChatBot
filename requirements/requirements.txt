@@ -143,6 +143,8 @@ pandas==2.2.3
     #   streamlit
 pillow==11.2.1
     # via streamlit
+prometheus-client==0.22.0
+    # via -r requirements/requirements.in
 propcache==0.3.1
     # via
     #   aiohttp
