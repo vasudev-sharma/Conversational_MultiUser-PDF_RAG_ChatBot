@@ -68,7 +68,42 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 
 
 
+TODO: 
+- Add multiple users
+- Add alerts if no documents are retreived by the LLM. In production, integrate it with PagerDuty or Slack.
+
 # Performance Optimization
 
+1. Calling the FAISS DB once and not every time we are querying  (remove redundancy)
+2. Building the FAISS index ourself and not using defaults
+3. Error handling with FAISS DB
 ## Questions to answer:
 
+### Vector DB
+- issue with basic vector data: 
+  - FAISS: fine-tune with k results and add a threshold
+  - With small vectors, we can use IndexFlatL2 index. However, as the size of document grows, vectors scale up as well. If vector size reaches in the order of millions, then we should should other indexing approach such as Inverted File Index (IndexIVFFlat / IndexIVFPQ)
+  - in-memory store, so slow as dataset size grows
+  - not caching of frequent queries
+  - no support for hybrid search
+  -
+- shift to Distributed vector database: Weviate DB and deploy to cloud
+- 
+## Improved Retreival and Ranking
+- Memory of chatbot
+- Better embedding 
+  - properietary
+  - open source:
+      - BAAI/bge-base-en-v1.5 
+      - sentence-transformers/all-MiniLM-L6-v2
+
+- Try different chunking strategies
+- Hybrid retreival (Keyword + Dense): https://python.langchain.com/docs/how_to/multi_vector/
+  - BM25 + FAISS 
+
+
+- Promt design 
+  - Explicit instructions
+  - Prevent hallucinations on the responses
+
+## Scalability of the chatbot with large number of users

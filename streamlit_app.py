@@ -32,11 +32,15 @@ def load_llm():
 
 #creating prompt template using langchain
 def load_prompt():
-        prompt = """ You need to answer the question in the sentence as same as in the  pdf content. . 
+        prompt = """ You're a PDF chatbot helping the users to guide to the answer as relevant as possible based on a PDF. You need to answer the question in the sentence as same as in the  pdf content. . 
         Given below is the context and question of the user.
         context = {context}
         question = {question}
-        if the answer is not in the pdf answer "i donot know what the hell you are asking about"
+
+        Rule:   
+        Use the following rules -      
+                - if the answer is not in the pdf answer, the respond with: "I don't know."
+                - Only answer based on the provided information. Do not make up information.
          """
         prompt = ChatPromptTemplate.from_template(prompt)
         return prompt
@@ -61,7 +65,9 @@ if __name__=='__main__':
                 
                 # Not to build
                 retriever = knowledgeBase.as_retriever()
-                docs = retriever.get_relevant_documents(query)
+
+                # TODO: Remove me as we are calling it twice
+                # docs = retriever.get_relevant_documents(query)
 
                 # Load the vector store only once and use it for similarity search for query
                 # similar_embeddings=knowledgeBase.similarity_search(query)

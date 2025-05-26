@@ -1,11 +1,12 @@
 streamlit
 prometheus_client
+# nr-openai-observability
 longchain
 load_dotenv
 altair==4.0.0
 langchain-community
 langchain-core
-langchain-openai
+langchain-openai==0.3.0
 faiss-cpu
 # faiss-gpu
 pypdf
