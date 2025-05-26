@@ -1,0 +1,10 @@
+streamlit
+longchain
+load_dotenv
+altair==4.0.0
+langchain-community
+langchain-core
+langchain-openai
+faiss-cpu
+# faiss-gpu
+pypdf
