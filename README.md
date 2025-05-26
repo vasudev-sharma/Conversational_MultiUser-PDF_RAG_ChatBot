@@ -26,4 +26,4 @@ Before running this script, ensure that you have both `minikube` and `Docker` on
 1. Expose the service port: kubectl expose deployment my-app --type=NodePort --port=8501`
 2. `minikube service my-app --url` and click on the url
 
-![alt text](streamlit/image.png)
+![alt text](images/streamlit.png)
