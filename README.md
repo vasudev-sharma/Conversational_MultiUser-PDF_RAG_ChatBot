@@ -1,8 +1,10 @@
-pip install -r requirements/requirements.in
-pip install -r requirements/requirements.txt
 
+![alt text](images/chatbot.png)
 
-## Local installation
+## Local installation and testing
+1. `pip install pip-tools`
+2. `pip install -r requirements/requirements.in`
+3. `pip install -r requirements/requirements.txt`
 
 **Ensure you have your OPENAI_API_KEY in `.env` file**
 1. `python vector_loader.py`
@@ -100,10 +102,19 @@ TODO:
 - Try different chunking strategies
 - Hybrid retreival (Keyword + Dense): https://python.langchain.com/docs/how_to/multi_vector/
   - BM25 + FAISS 
+- Query expansion or rewrite with or LangChain’s QueryConstructor
 
 
 - Promt design 
   - Explicit instructions
   - Prevent hallucinations on the responses
 
+
+
+
 ## Scalability of the chatbot with large number of users
+
+
+
+## Evaluation of RAGs output
+https://chatgpt.com/share/683501bb-f744-800e-8357-20b024fd4dfd

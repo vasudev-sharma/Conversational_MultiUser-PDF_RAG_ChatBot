@@ -59,6 +59,8 @@ if __name__=='__main__':
         
         query=sl.text_input('Enter some text')
         
+
+        # TODO: Experiment with Query Expansion
         
         if(query):
                 #getting only the chunks that are similar to the query for llm to produce the output
@@ -75,6 +77,8 @@ if __name__=='__main__':
                 
                 #creating the chain for integrating llm,prompt,stroutputparser
                 # retriever = similar_embeddings.as_retriever()
+
+                # TODO: Experiment with Hybrid retreiver (keyword + search)
                 rag_chain = (
                         {"context": retriever | format_docs, "question": RunnablePassthrough()}
                         | prompt
@@ -84,6 +88,7 @@ if __name__=='__main__':
                 
                 response=rag_chain.invoke(query)
                 sl.write(response)
+        
                 
         
         

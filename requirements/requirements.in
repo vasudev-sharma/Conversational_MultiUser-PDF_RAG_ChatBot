@@ -1,5 +1,6 @@
 streamlit
 prometheus_client
+ragas
 # nr-openai-observability
 longchain
 load_dotenv
