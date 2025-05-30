@@ -1,12 +1,12 @@
-from typing import List
-from langchain.schema import BaseRetriever
-from typing import List, Dict, Any
-from langchain.schema.document import Document
 import logging
-from pydantic import Extra
-from dataclasses import dataclass
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List
+
+from langchain.schema import BaseRetriever
+from langchain.schema.document import Document
+from pydantic import Extra
 
 DB_NAME = "rag_app.db"
 

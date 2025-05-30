@@ -1,70 +1,89 @@
 # import Essential dependencies
-import streamlit as sl
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.prompts import MessagesPlaceholder
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import RetrievalQA, ConversationalRetrievalChain
-from langchain.prompts import ChatPromptTemplate
+import os
+import uuid
 from typing import List
-from langchain_core.documents import Document
-from pydantic import Field
+
+import pandas as pd
+import streamlit as sl
+import streamlit as st
+from datasets import Dataset
+from dotenv import load_dotenv
+from langchain.chains import ConversationalRetrievalChain, RetrievalQA
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import ChatPromptTemplate
 from langchain.retrievers.ensemble import EnsembleRetriever
 from langchain.schema import BaseRetriever
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.chat_message_histories import \
+    StreamlitChatMessageHistory
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-from dotenv import load_dotenv
-from ragas.metrics import faithfulness, answer_relevancy, context_precision
-import os
-import threading
-from utils import LoggingRetriever
-from ragas.metrics import faithfulness, answer_relevancy, context_precision
-from ragas import evaluate
-import pandas as pd
-from datasets import Dataset
+from langchain_openai import OpenAIEmbeddings
 from langsmith import Client
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from prometheus_client import REGISTRY, Counter, Histogram, start_http_server
+from pydantic import Field
+from ragas import evaluate
+from ragas.metrics import answer_relevancy, context_precision, faithfulness
 from streamlit_extras.prometheus import streamlit_registry
-import streamlit as st
-
-from prometheus_client import start_http_server, Counter, Histogram, REGISTRY
+import time
+from utils import get_chat_history, insert_application_logs
 
 
 def get_llm_queries_counter():
-    return Counter(
-        name="llm_queries_total",
-        documentation="Total LLM Queries",
-        registry=streamlit_registry(),
-    )
+        """
+        Creates and returns a Counter metric for tracking the total number of LLM queries.
+        Returns:
+                Counter: A Prometheus Counter object named "llm_queries_total" with documentation "Total LLM Queries",
+                                registered to the Streamlit metrics registry.
+        """
+    
+        return Counter(
+                name="llm_queries_total",
+                documentation="Total LLM Queries",
+                registry=streamlit_registry(),
+        )
 
 
 @st.cache_resource
 def get_llm_errors_counter():
-    return Counter(
+        """
+        Creates and returns a Counter metric for tracking the total number of LLM errors.
+        Returns:
+                Counter: A Prometheus Counter metric named 'llm_errors_total' with documentation
+                'Total LLM Errors', registered to the Streamlit metrics registry.
+        """
+        
+        return Counter(
         name="llm_errors_total",
         documentation="Total LLM Errors",
         registry=streamlit_registry(),
-    )
+        )
 
 
 @st.cache_resource
 def get_llm_latency_histogram():
-    return Histogram(
+        """
+        Creates and returns a Prometheus Histogram metric for tracking LLM query latency in seconds.
+        Returns:
+                Histogram: A Prometheus Histogram object configured to record LLM query latency.
+        Raises:
+                Any exception raised by the Histogram constructor or streamlit_registry().
+        Example:
+                histogram = get_llm_latency_histogram()
+                histogram.observe(1.23)
+        """
+        
+        return Histogram(
         name="llm_query_latency_seconds",
         documentation="LLM Query latency (seconds)",
         registry=streamlit_registry(),
-    )
+        )
 
-
-import time
-
-
-# def start_prometheus_server(): # run in background thread
-#         start_http_server(9090)
-
-# threading.Thread(target=start_prometheus_server, daemon=True).start()
 
 
 try:
@@ -75,43 +94,69 @@ except Exception as e:
 
 # function to load the vectordatabase
 def load_knowledgeBase():
-    embeddings = OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY"))
-    DB_FAISS_PATH = "vectorstore/db_faiss"
-    db = FAISS.load_local(
+        """
+        Loads a FAISS-based knowledge base from a local vector store using OpenAI embeddings.
+        Returns:
+                FAISS: An instance of the FAISS vector store loaded with the specified embeddings.
+        Raises:
+                ValueError: If the OpenAI API key is not set in the environment variables.
+                Exception: If loading the FAISS vector store fails.
+        """
+    
+        embeddings = OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY"))
+        DB_FAISS_PATH = "vectorstore/db_faiss"
+        db = FAISS.load_local(
         DB_FAISS_PATH, embeddings, allow_dangerous_deserialization=True
-    )
-    return db
+        )
+        return db
 
 
 # function to load the OPENAI LLM
 def load_llm():
-    from langchain_openai import ChatOpenAI
+        """
+        Initializes and returns a ChatOpenAI language model instance using the OpenAI API key from environment variables.
+        Returns:
+                ChatOpenAI: An instance of the ChatOpenAI language model with the specified configuration.
+        Raises:
+                KeyError: If the 'OPENAI_API_KEY' environment variable is not set.
+        """
+        
+        from langchain_openai import ChatOpenAI
 
-    llm = ChatOpenAI(
+        llm = ChatOpenAI(
         model_name="gpt-3.5-turbo",
         temperature=0,
         api_key=os.environ.get("OPENAI_API_KEY"),
-    )
-    return llm
+        )
+        return llm
 
 
 # creating prompt template using langchain
 def load_prompt():
-    prompt = """ You're a PDF chatbot helping the users to guide to the answer as relevant as possible based on a PDF. You need to answer the question in the sentence as same as in the  pdf content. . 
+        """
+        Loads and returns a chat prompt template for a PDF-based chatbot.
+        The prompt instructs the chatbot to answer user questions strictly based on the content of a provided PDF.
+        It includes placeholders for chat history, context, and question, and enforces rules such as:
+                - Responding with "I don't know. Please ask questions relevant to the PDF document" if the answer is not found in the PDF.
+                - Only answering based on the provided information without making up content.
+        Returns:
+                ChatPromptTemplate: A prompt template configured with the specified instructions and placeholders.
+        """
+        prompt = """ You're a PDF chatbot helping the users to guide to the answer as relevant as possible based on a PDF. You need to answer the question in the sentence as same as in the  pdf content. . 
         Given below is the context and question of the user.
         Current conversation:
         {chat_history}
 
         context = {context}
         question = {question}
-        
+
         Rule:   
         Use the following rules -      
                 - if the answer is not in the pdf answer, the respond with: "I don't know. Please ask questions relevant to the PDF document"
                 - Only answer based on the provided information. Do not make up information.
-         """
-    prompt = ChatPromptTemplate.from_template(prompt)
-    return prompt
+                """
+        prompt = ChatPromptTemplate.from_template(prompt)
+        return prompt
 
 
 def format_docs(docs):
@@ -119,86 +164,121 @@ def format_docs(docs):
 
 
 def query_llm(query, rag_chain):
-    LLM_QUERIES = get_llm_queries_counter()
-    LLM_ERRORS = get_llm_errors_counter()
-    LLM_LATENCY = get_llm_latency_histogram()
-    LLM_QUERIES.inc()
-    start_time = time.time()
+        """
+        Executes a query against a provided RAG (Retrieval-Augmented Generation) chain and tracks metrics.
+        This function increments counters for LLM queries and errors, measures latency, and observes latency metrics.
+        It invokes the RAG chain with the given query and returns the response. If an exception occurs during invocation,
+        the error counter is incremented and the exception is propagated.
+        Args:
+                query (str): The user query to be processed by the RAG chain.
+                rag_chain: The RAG chain object with an `invoke` method that processes the query.
+        Returns:
+                The response from the RAG chain's `invoke` method.
+        Raises:
+                Exception: Propagates any exception raised during the RAG chain invocation.
+        """
+        
+        LLM_QUERIES = get_llm_queries_counter()
+        LLM_ERRORS = get_llm_errors_counter()
+        LLM_LATENCY = get_llm_latency_histogram()
+        LLM_QUERIES.inc()
+        start_time = time.time()
 
-    try:
+        try:
         latency = time.time() - start_time
         response = rag_chain.invoke({"question": query})
         LLM_LATENCY.observe(latency)
         return response
-    except Exception as e:
+        except Exception as e:
         LLM_ERRORS.inc()
         raise
 
 
 # --- Keyword Retriever (Simple Implementation) ---
 
-
-# To make SimpleKeywordRetriever compatible, subclass BaseRetriever:
 class KeywordRetriever(BaseRetriever):
-    documents: List[Document] = Field(default_factory=list)
-    k: int = 5
+        """
+        A retriever class that selects the top-k documents most relevant to a query based on keyword frequency.
+        Attributes:
+                documents (List[Document]): The list of documents to search through.
+                k (int): The number of top relevant documents to return.
+        Methods:
+                _get_relevant_documents(query, run_manager=None):
+                        Returns a list of up to k documents that contain the highest frequency of query terms.
+                        The relevance score is computed as the sum of occurrences of each query term in the document content.
+                        Only documents with a positive score are returned.
+                _aget_relevant_documents(query, run_manager=None):
+                        Asynchronous version of _get_relevant_documents.
+        """
 
-    def _get_relevant_documents(self, query, run_manager=None):
-        query_terms = set(query.lower().split())
-        scored = []
-        for doc in self.documents:
-            content = doc.page_content.lower()
-            score = sum(content.count(term) for term in query_terms)
-            scored.append((score, doc))
-        scored.sort(reverse=True, key=lambda x: x[0])
-        return [doc for score, doc in scored[: self.k] if score > 0]
+        documents: List[Document] = Field(default_factory=list)
+        k: int = 5
 
-    async def _aget_relevant_documents(self, query, run_manager=None):
-        return self._get_relevant_documents(query, run_manager)
+        def _get_relevant_documents(self, query, run_manager=None):
+                query_terms = set(query.lower().split())
+                scored = []
+                for doc in self.documents:
+                        content = doc.page_content.lower()
+                        score = sum(content.count(term) for term in query_terms)
+                        scored.append((score, doc))
+                scored.sort(reverse=True, key=lambda x: x[0])
+                return [doc for score, doc in scored[: self.k] if score > 0]
+
+        async def _aget_relevant_documents(self, query, run_manager=None):
+                return self._get_relevant_documents(query, run_manager)
 
 
-from langchain_core.messages import HumanMessage, AIMessage
-import uuid
-from utils import get_chat_history, insert_application_logs
 
 
 def run_evaluation(rag_chain):
+        """
+        Evaluates a Retrieval-Augmented Generation (RAG) chain using mock evaluation data.
+        This function generates evaluation results by invoking the provided RAG chain on a set of predefined
+        question-answer pairs. It collects the generated answers, compares them with ground truth answers,
+        and computes evaluation metrics such as faithfulness, answer relevancy, and context precision.
+        Args:
+                rag_chain: An object representing the RAG chain, which must implement an `invoke` method that
+                                accepts a dictionary with a "question" key and returns a dictionary with an "answer" key.
+        Returns:
+                dict: The evaluation results containing computed metrics for the RAG chain's responses.
+        """
+        
 
-    # TODO use LLM to generation data
+        # TODO: LLM as a Judge
 
-    # Mock evaluation data
+        # Mock evaluation data
 
-    evaluation_data = [
+        evaluation_data = [
         {
-            "question": "Who is Arthur Samuel?",
-            "ground_truth": "Arthur Samuel was a pioneer in machine learning.",
-            "contexts": [
+                "question": "Who is Arthur Samuel?",
+                "ground_truth": "Arthur Samuel was a pioneer in machine learning.",
+                "contexts": [
                 "Arthur Samuel was one of the pioneers of machine learning and artificial intelligence."
-            ],
+                ],
         },
         # Add more QA pairs as needed
-    ]
+        ]
 
-    results_eval = []
-    for item in evaluation_data:
+        results_eval = []
+        for item in evaluation_data:
         query = item["question"]
         response = rag_chain.invoke({"question": query})
         generated_answer = response["answer"]
         results_eval.append(
-            {
+                {
                 "question": query,
                 "ground_truth": item["ground_truth"],
                 "retrieved_contexts": [],  # add more context here,
                 "response": generated_answer,
-            }
+                }
         )
 
-    df = pd.DataFrame(results_eval)
-    ragas_dataset = Dataset.from_pandas(df)
-    metrics = [faithfulness, answer_relevancy, context_precision]
+        df = pd.DataFrame(results_eval)
+        ragas_dataset = Dataset.from_pandas(df)
+        metrics = [faithfulness, answer_relevancy, context_precision]
 
-    results_eval = evaluate(ragas_dataset, metrics)
-    return results_eval
+        results_eval = evaluate(ragas_dataset, metrics)
+        return results_eval
 
 
 if __name__ == "__main__":
@@ -247,24 +327,7 @@ if __name__ == "__main__":
             weights=[0.5, 0.5],  # You can tune the weights
         )
 
-        # retriever = LoggingRetriever(retrieval=)
 
-        # TODO: Remove me as we are calling it twice
-        # docs = retriever.get_relevant_documents(query)
-
-        # Load the vector store only once and use it for similarity search for query
-        # similar_embeddings=knowledgeBase.similarity_search(query)
-        # similar_embeddings=FAISS.from_documents(documents=similar_embeddings, embedding=OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY")))
-
-        # creating the chain for integrating llm,prompt,stroutputparser
-        # retriever = similar_embeddings.as_retriever()
-
-        # TODO: Experiment with Hybrid retreiver (keyword + search)
-        # rag_chain = (
-        #         {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        #         | prompt
-        #         | llm
-        #     )
 
         # TODO: Add memory to RAG
         rag_chain = ConversationalRetrievalChain.from_llm(
@@ -282,73 +345,6 @@ if __name__ == "__main__":
             session_id, query, response["answer"], model="gpt-3.5-turbo"
         )
 
-        # # converasation_rag
-        # chat_history = sl.session_state.chat_history
-
-        # # Handling
-        # chat_history.extend([HumanMessage(query), AIMessage(response['answer'])])
-        # print(chat_history)
-
-        # # Contextualize system prompts
-        # contextualize_q_system_prompt = """
-        # Given a chat history and the latent user question
-        # which might reference context in the chat history,
-        # formulate a standalone question which can be understood
-        # without the chat history. DO NOT answer the question,
-        # just reformulate it if needed and otherwise return it as is.
-        # """
-
-        # contextualize_q_system_prompt = ChatPromptTemplate.from_messages(
-
-        #        [
-        #               ("system", contextualize_q_system_prompt),
-        #               MessagesPlaceholder("chat_history"),
-        #               ("human", "{input}")
-        #        ]
-        # )
-
-        # print("\n"*2)
-        # print("*********"*10)
-        # print("The chat history is \n: ", chat_history)
-        # print("\n\n")
-
-        # Testing prompts
-        # Who is Arthur Samuel?
-        # Where he was working in 1959?
-        # contextualize_chain = contextualize_q_system_prompt | llm | StrOutputParser()
-        # context_reponse = contextualize_q_system_prompt.invoke({"input": query, "chat_history": chat_history})
-        # print("\n"*2)
-        # print("*********"*10)
-        # print(context_reponse)
-        # # print(context_reponse.content)
-        # print("\n"*2)
-
-        # Update the streamlit variable
-        # sl.session_state.chat_history = chat_history
-
-        # TODO: Evaluate responses
-
-        # evaluation data: TODO (Add Eval / question pairs or use LLM)
-
-        # faithfulness_score = []
-        # answer_relevancy_score = []
-        # context_precision_score = []
-
-        # for result in results:
-        #         faith = faithfulness(result['generated_answer'], result['context'], result['ground_truth'])
-        #         relevancy = answer_relevancy(result["generated_answer"], result["ground_truth"])
-        #         precision = context_precision(result["context"], result["ground_truth"])
-
-        #         faithfulness_score.append(faith)
-        #         answer_relevancy_score.append(relevancy)
-        #         answer_relevancy_score.append(precision)
-
-        # print("\n\n")
-        # print("*********"*10)
-        # # aggregate results
-        # print("Faithfulness: ", sum(faithfulness_score) / len(faithfulness_score))
-        # print("Answer Relevancy: ", sum(answer_relevancy_score) / len(answer_relevancy_score))
-        # print("Context Precision: ", sum(context_precision_score) / len(context_precision_score))
 
         print("\n\n")
         print("*********" * 10)
