@@ -44,7 +44,6 @@ Before running this script, ensure that you have both `minikube` and `Docker` on
 ![alt text](images/monitoring.png)
 
 
-
 ```
 NAME: monitoring
 LAST DEPLOYED: Mon May 26 17:34:47 2025
@@ -68,7 +67,12 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 ```
 
 **Metrics**
-- 
+- LLM Query Rate (per second)
+- LLM Query Latency
+- LLM Error Queries 
+- LLM Total Queries
+- LLM Average Query Latency
+- LLM Error Queries
 
 
 
