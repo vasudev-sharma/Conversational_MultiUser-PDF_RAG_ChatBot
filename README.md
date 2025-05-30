@@ -110,29 +110,22 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 
 
 ### Vector DB
-- Promt design 
+
+- conversational RAG with history aware retreiver [Implemented]
+![alt text](images/mem1.png)
+![alt text](images/mem2.pg)
+
+- Promt design [Implemented]
   - Explicit instructions
   - Prevent hallucinations on the responses
 - issue with basic vector data: 
   - FAISS: fine-tune with k results and add a threshold
   - With small vectors, we can use IndexFlatL2 index. However, as the size of document grows, vectors scale up as well. If vector size reaches in the order of millions, then we should should other indexing approach such as Inverted File Index (IndexIVFFlat / IndexIVFPQ)
-  - in-memory store, so slow as dataset size grows
-  - not caching of frequent queries
-  - no support for hybrid search
-  -
-- shift to Distributed vector database: Weviate DB and deploy to cloud
-- 
-
+  - Current limitation: in-memory store, so slow as dataset size grows 
+  - Caching of frequent queries
+- shift to Distributed vector database: Weviate DB and deploy to cloud [TODO]
 - Try different chunking strategies [TODO]
 - Query expansion or rewrite with or LangChain’s QueryConstructor [TODO]
-
-
-
-
-- conversational RAG with history aware retreiver
-![alt text](images/mem1.png)
-![alt text](images/mem2.pg)
-
 - LangGraph for production use-case [TODO]
 
 
