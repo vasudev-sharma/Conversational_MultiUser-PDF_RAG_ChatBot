@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.12.2
+aiohttp==3.12.9
     # via
     #   fsspec
     #   langchain-community
@@ -24,13 +24,26 @@ anyio==4.9.0
     #   openai
 appdirs==1.4.4
     # via ragas
+asn1crypto==1.5.1
+    # via snowflake-connector-python
 attrs==25.3.0
     # via
     #   aiohttp
     #   jsonschema
     #   referencing
+beautifulsoup4==4.13.4
+    # via favicon
+black==25.1.0
+    # via -r requirements/requirements.in
 blinker==1.9.0
     # via streamlit
+boto3==1.38.30
+    # via snowflake-connector-python
+botocore==1.38.30
+    # via
+    #   boto3
+    #   s3transfer
+    #   snowflake-connector-python
 cachetools==5.5.2
     # via streamlit
 certifi==2025.4.26
@@ -38,10 +51,29 @@ certifi==2025.4.26
     #   httpcore
     #   httpx
     #   requests
+    #   snowflake-connector-python
+cffi==1.17.1
+    # via
+    #   cryptography
+    #   snowflake-connector-python
 charset-normalizer==3.4.2
-    # via requests
+    # via
+    #   requests
+    #   snowflake-connector-python
 click==8.2.1
-    # via streamlit
+    # via
+    #   black
+    #   streamlit
+cloudpickle==3.0.0
+    # via snowflake-snowpark-python
+contourpy==1.3.2
+    # via matplotlib
+cryptography==45.0.3
+    # via
+    #   pyopenssl
+    #   snowflake-connector-python
+cycler==0.12.1
+    # via matplotlib
 dataclasses-json==0.6.7
     # via langchain-community
 datasets==3.6.0
@@ -55,14 +87,23 @@ diskcache==5.6.3
 distro==1.9.0
     # via openai
 entrypoints==0.4
-    # via altair
+    # via
+    #   altair
+    #   streamlit-extras
 faiss-cpu==1.11.0
     # via -r requirements/requirements.in
+faker==37.3.0
+    # via streamlit-faker
+favicon==0.7.0
+    # via markdownlit
 filelock==3.18.0
     # via
     #   datasets
     #   huggingface-hub
-frozenlist==1.6.0
+    #   snowflake-connector-python
+fonttools==4.58.1
+    # via matplotlib
+frozenlist==1.6.2
     # via
     #   aiohttp
     #   aiosignal
@@ -76,8 +117,13 @@ gitpython==3.1.44
     # via streamlit
 h11==0.16.0
     # via httpcore
-hf-xet==1.1.2
+hf-xet==1.1.3
     # via huggingface-hub
+htbuilder==0.9.0
+    # via
+    #   markdownlit
+    #   st-annotated-text
+    #   streamlit-extras
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
@@ -86,20 +132,28 @@ httpx==0.28.1
     #   openai
 httpx-sse==0.4.0
     # via langchain-community
-huggingface-hub==0.32.1
+huggingface-hub==0.32.4
     # via datasets
 idna==3.10
     # via
     #   anyio
     #   httpx
     #   requests
+    #   snowflake-connector-python
     #   yarl
 jinja2==3.1.6
     # via
     #   altair
     #   pydeck
+    #   streamlit-camera-input-live
+    #   streamlit-image-coordinates
+    #   streamlit-keyup
 jiter==0.10.0
     # via openai
+jmespath==1.0.1
+    # via
+    #   boto3
+    #   botocore
 jsonpatch==1.33
     # via langchain-core
 jsonpointer==3.0.0
@@ -108,6 +162,8 @@ jsonschema==4.24.0
     # via altair
 jsonschema-specifications==2025.4.1
     # via jsonschema
+kiwisolver==1.4.8
+    # via matplotlib
 langchain==0.3.25
     # via
     #   langchain-community
@@ -116,7 +172,7 @@ langchain-community==0.3.24
     # via
     #   -r requirements/requirements.in
     #   ragas
-langchain-core==0.3.61
+langchain-core==0.3.63
     # via
     #   -r requirements/requirements.in
     #   langchain
@@ -130,7 +186,7 @@ langchain-openai==0.3.0
     #   ragas
 langchain-text-splitters==0.3.8
     # via langchain
-langsmith==0.3.42
+langsmith==0.3.44
     # via
     #   langchain
     #   langchain-community
@@ -139,10 +195,20 @@ load-dotenv==0.1.0
     # via -r requirements/requirements.in
 longchain==0.4.2
     # via -r requirements/requirements.in
+lxml==5.4.0
+    # via markdownlit
+markdown==3.8
+    # via
+    #   markdownlit
+    #   pymdown-extensions
+markdownlit==0.0.7
+    # via streamlit-extras
 markupsafe==3.0.2
     # via jinja2
 marshmallow==3.26.1
     # via dataclasses-json
+matplotlib==3.10.3
+    # via streamlit-faker
 multidict==6.4.4
     # via
     #   aiohttp
@@ -150,20 +216,26 @@ multidict==6.4.4
 multiprocess==0.70.16
     # via datasets
 mypy-extensions==1.1.0
-    # via typing-inspect
+    # via
+    #   black
+    #   typing-inspect
+narwhals==1.41.0
+    # via plotly
 nest-asyncio==1.6.0
     # via ragas
 numpy==2.2.6
     # via
     #   altair
+    #   contourpy
     #   datasets
     #   faiss-cpu
     #   langchain-community
+    #   matplotlib
     #   pandas
     #   pydeck
     #   ragas
     #   streamlit
-openai==1.82.0
+openai==1.84.0
     # via
     #   langchain-openai
     #   ragas
@@ -171,32 +243,55 @@ orjson==3.10.18
     # via langsmith
 packaging==24.2
     # via
+    #   black
     #   datasets
     #   faiss-cpu
     #   huggingface-hub
     #   langchain-core
     #   langsmith
     #   marshmallow
+    #   matplotlib
+    #   plotly
+    #   snowflake-connector-python
     #   streamlit
 pandas==2.2.3
     # via
     #   altair
     #   datasets
+    #   snowflake-connector-python
     #   streamlit
+pathspec==0.12.1
+    # via black
 pillow==11.2.1
-    # via streamlit
-prometheus-client==0.22.0
-    # via -r requirements/requirements.in
+    # via
+    #   matplotlib
+    #   streamlit
+platformdirs==4.3.8
+    # via
+    #   black
+    #   snowflake-connector-python
+plotly==6.1.2
+    # via streamlit-extras
+prometheus-client==0.22.1
+    # via
+    #   -r requirements/requirements.in
+    #   streamlit-extras
 propcache==0.3.1
     # via
     #   aiohttp
     #   yarl
-protobuf==6.31.0
-    # via streamlit
-pyarrow==20.0.0
+protobuf==5.29.5
+    # via
+    #   snowflake-snowpark-python
+    #   streamlit
+    #   streamlit-extras
+pyarrow==18.1.0
     # via
     #   datasets
+    #   snowflake-connector-python
     #   streamlit
+pycparser==2.22
+    # via cffi
 pydantic==2.11.5
     # via
     #   langchain
@@ -211,16 +306,30 @@ pydantic-settings==2.9.1
     # via langchain-community
 pydeck==0.9.1
     # via streamlit
-pypdf==5.5.0
+pyjwt==2.10.1
+    # via snowflake-connector-python
+pymdown-extensions==10.15
+    # via markdownlit
+pyopenssl==25.1.0
+    # via snowflake-connector-python
+pyparsing==3.2.3
+    # via matplotlib
+pypdf==5.6.0
     # via -r requirements/requirements.in
 python-dateutil==2.9.0.post0
-    # via pandas
+    # via
+    #   botocore
+    #   matplotlib
+    #   pandas
+    #   snowflake-snowpark-python
 python-dotenv==1.1.0
     # via
     #   load-dotenv
     #   pydantic-settings
 pytz==2025.2
-    # via pandas
+    # via
+    #   pandas
+    #   snowflake-connector-python
 pyyaml==6.0.2
     # via
     #   datasets
@@ -228,6 +337,8 @@ pyyaml==6.0.2
     #   langchain
     #   langchain-community
     #   langchain-core
+    #   pymdown-extensions
+    #   snowflake-snowpark-python
 ragas==0.2.15
     # via -r requirements/requirements.in
 referencing==0.36.2
@@ -239,11 +350,13 @@ regex==2024.11.6
 requests==2.32.3
     # via
     #   datasets
+    #   favicon
     #   huggingface-hub
     #   langchain
     #   langchain-community
     #   langsmith
     #   requests-toolbelt
+    #   snowflake-connector-python
     #   streamlit
     #   tiktoken
 requests-toolbelt==1.0.0
@@ -252,6 +365,10 @@ rpds-py==0.25.1
     # via
     #   jsonschema
     #   referencing
+ruff==0.11.12
+    # via -r requirements/requirements.in
+s3transfer==0.13.0
+    # via boto3
 six==1.17.0
     # via python-dateutil
 smmap==5.0.2
@@ -260,14 +377,63 @@ sniffio==1.3.1
     # via
     #   anyio
     #   openai
+snowflake-connector-python[pandas]==3.15.0
+    # via snowflake-snowpark-python
+snowflake-snowpark-python[pandas]==1.32.0
+    # via streamlit-extras
+sortedcontainers==2.4.0
+    # via snowflake-connector-python
+soupsieve==2.7
+    # via beautifulsoup4
 sqlalchemy==2.0.41
     # via
     #   langchain
     #   langchain-community
+st-annotated-text==4.0.2
+    # via streamlit-extras
+st-theme==1.2.3
+    # via streamlit-extras
 streamlit==1.45.1
-    # via -r requirements/requirements.in
+    # via
+    #   -r requirements/requirements.in
+    #   markdownlit
+    #   st-theme
+    #   streamlit-avatar
+    #   streamlit-camera-input-live
+    #   streamlit-card
+    #   streamlit-embedcode
+    #   streamlit-extras
+    #   streamlit-faker
+    #   streamlit-image-coordinates
+    #   streamlit-keyup
+    #   streamlit-toggle-switch
+    #   streamlit-vertical-slider
+streamlit-avatar==0.1.3
+    # via streamlit-extras
+streamlit-camera-input-live==0.2.0
+    # via streamlit-extras
+streamlit-card==1.0.2
+    # via streamlit-extras
+streamlit-embedcode==0.1.2
+    # via streamlit-extras
+streamlit-extras==0.7.1
+    # via
+    #   -r requirements/requirements.in
+    #   markdownlit
+    #   streamlit-faker
+streamlit-faker==0.0.3
+    # via streamlit-extras
+streamlit-image-coordinates==0.2.2
+    # via streamlit-extras
+streamlit-keyup==0.3.0
+    # via streamlit-extras
+streamlit-toggle-switch==1.0.2
+    # via streamlit-extras
+streamlit-vertical-slider==2.5.5
+    # via streamlit-extras
 tenacity==9.1.2
     # via
+    #   -r requirements/requirements.in
     #   langchain-community
     #   langchain-core
     #   streamlit
@@ -277,6 +443,8 @@ tiktoken==0.9.0
     #   ragas
 toml==0.10.2
     # via streamlit
+tomlkit==0.13.2
+    # via snowflake-connector-python
 toolz==1.0.0
     # via altair
 tornado==6.5.1
@@ -286,15 +454,19 @@ tqdm==4.67.1
     #   datasets
     #   huggingface-hub
     #   openai
-typing-extensions==4.13.2
+typing-extensions==4.14.0
     # via
     #   anyio
+    #   beautifulsoup4
     #   huggingface-hub
     #   langchain-core
     #   openai
     #   pydantic
     #   pydantic-core
+    #   pyopenssl
     #   referencing
+    #   snowflake-connector-python
+    #   snowflake-snowpark-python
     #   sqlalchemy
     #   streamlit
     #   typing-inspect
@@ -306,12 +478,25 @@ typing-inspection==0.4.1
     #   pydantic
     #   pydantic-settings
 tzdata==2025.2
-    # via pandas
+    # via
+    #   faker
+    #   pandas
+tzlocal==5.3.1
+    # via snowflake-snowpark-python
 urllib3==2.4.0
-    # via requests
+    # via
+    #   botocore
+    #   requests
+validators==0.35.0
+    # via streamlit-extras
+wheel==0.45.1
+    # via snowflake-snowpark-python
 xxhash==3.5.0
     # via datasets
 yarl==1.20.0
     # via aiohttp
 zstandard==0.23.0
     # via langsmith
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

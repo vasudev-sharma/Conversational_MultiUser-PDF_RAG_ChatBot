@@ -1,0 +1,16 @@
+# Add paths to directories and files
+model:
+  model_name: 'gpt-3.5-turbo'
+  temperature: 0
+search:
+  type: 'similarity'
+  k: 5
+  keyword_k: 1000
+  weight_semantic: 0.8
+  weight_keyword: 0.2
+eval:
+  dataset_name: 'My_QA_Eval_Dataset'
+  num_docs: 10
+paths:
+  env_path: '.env' 
+  evaluation_path: 'rag_evaluation_log.txt'

@@ -66,7 +66,7 @@ Access Grafana local instance:
 Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
 ```
 
-**Metrics**
+## **Metrics 📊**
 - LLM Query Rate (per second)
 - LLM Query Latency
 - LLM Error Queries 
@@ -88,46 +88,31 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 - Size of the document is small. If that's not the case, some recommendations on it 
 
 
-
-
 # Performance Optimization
 ![alt text](images/history_aware_conversation_rag.png)
 
 ## Improved Retreival and Ranking
 - Memory of chatbot (conversational aware) [Implemented]
-- Hybrid retreival (Keyword + Dense): https://python.langchain.com/docs/how_to/multi_vector/ [Implemented]
+- Hybrid retreival (Keyword + Dense): [Implemented]
   - BM25 + FAISS 
-- Calling the FAISS DB once and not every time we are querying  (remove redundancy)
-- Building the FAISS index ourself and not using defaults [TODO]
-- Error handling with FAISS DB
-- Add alerts if no documents are retreived by the LLM. In production, integrate it with PagerDuty or Slack [TODO]
-- Improved embedding [TODO]
-  - properietary
-  - open source:
-      - BAAI/bge-base-en-v1.5 
-      - sentence-transformers/all-MiniLM-L6-v2 
-
+- Calling the FAISS DB once (remove redundancy) [Implemented]
+- Error handling with Tenacity [Implemented]
 
 
 ### Vector DB
 
-- conversational RAG with history aware retreiver [Implemented]
+- Conversational RAG with history aware retriever [Implemented]
 ![alt text](images/mem1.png)
-![alt text](images/mem2.pg)
+![alt text](images/mem2.png)
 
-- Promt design [Implemented]
+- Prompt design [Implemented]
   - Explicit instructions
   - Prevent hallucinations on the responses
-- issue with basic vector data: 
+- Issue with basic vector store: 
   - FAISS: fine-tune with k results and add a threshold
   - With small vectors, we can use IndexFlatL2 index. However, as the size of document grows, vectors scale up as well. If vector size reaches in the order of millions, then we should should other indexing approach such as Inverted File Index (IndexIVFFlat / IndexIVFPQ)
   - Current limitation: in-memory store, so slow as dataset size grows 
   - Caching of frequent queries
-- shift to Distributed vector database: Weviate DB and deploy to cloud [TODO]
-- Try different chunking strategies [TODO]
-- Query expansion or rewrite with or LangChain’s QueryConstructor [TODO]
-- LangGraph for production use-case [TODO]
-
 
 
 ## Scalability of the chatbot with large number of users
@@ -137,5 +122,7 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 
 
 ## Evaluation of RAGs output
+![alt text](images/evaluation.png)
+
 - RAGAS to compute precision, answer relevancy and context [Impemented]
-- LLM as judge [TODO]
+- Evaluation dataset (QA pairs) with LLM [Implemented]: [LangSmith](https://smith.langchain.com/o/17793626-1aa2-54bd-9dcf-15281098f4c1/datasets/89ffcf49-c001-401f-970c-862060a3c01f?tab=2)

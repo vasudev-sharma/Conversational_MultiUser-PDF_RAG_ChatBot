@@ -28,12 +28,15 @@ from langsmith import Client
 from prometheus_client import REGISTRY, Counter, Histogram, start_http_server
 from pydantic import Field
 from ragas import evaluate
+import yaml
 from ragas.metrics import answer_relevancy, context_precision, faithfulness
 from streamlit_extras.prometheus import streamlit_registry
 import time
-from utils import get_chat_history, insert_application_logs
+from utils import get_chat_history, insert_application_logs, create_application_logs, create_document_store
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 
+@st.cache_resource
 def get_llm_queries_counter():
         """
         Creates and returns a Counter metric for tracking the total number of LLM queries.
@@ -85,13 +88,31 @@ def get_llm_latency_histogram():
         )
 
 
+def load_env_file(filepath='.env'):
+        """
+        Loads environment variables from a specified .env file.
 
-try:
-    load_dotenv(".env")
-except Exception as e:
-    raise Exception("Please create a .env file with your OpenAI API key") from e
+        Parameters:
+                filepath (str): Path to the .env file. Defaults to '.env'.
+
+        Raises:
+                Exception: If loading the .env file fails, an exception is raised with a message prompting the user to create a .env file with their OpenAI API key.
+        """
 
 
+        try:
+                load_dotenv(filepath)
+        except Exception as e:
+                raise Exception("Please create a .env file with your OpenAI API key") from e
+
+
+
+@retry(
+              stop=stop_after_attempt(3),
+              wait=wait_exponential(multiplier=1, min=2, max=10), # Exponential Backoff
+              retry=retry_if_exception_type(Exception),
+              reraise=True
+)
 # function to load the vectordatabase
 def load_knowledgeBase():
         """
@@ -112,7 +133,7 @@ def load_knowledgeBase():
 
 
 # function to load the OPENAI LLM
-def load_llm():
+def load_llm(config):
         """
         Initializes and returns a ChatOpenAI language model instance using the OpenAI API key from environment variables.
         Returns:
@@ -124,8 +145,8 @@ def load_llm():
         from langchain_openai import ChatOpenAI
 
         llm = ChatOpenAI(
-        model_name="gpt-3.5-turbo",
-        temperature=0,
+        model_name=config['model']['model_name'],
+        temperature=config['model']['temperature'], 
         api_key=os.environ.get("OPENAI_API_KEY"),
         )
         return llm
@@ -163,6 +184,13 @@ def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
 
+
+@retry(
+              stop=stop_after_attempt(3),
+              wait=wait_exponential(multiplier=1, min=2, max=10), # Exponential Backoff
+              retry=retry_if_exception_type(Exception),
+              reraise=True
+)
 def query_llm(query, rag_chain):
         """
         Executes a query against a provided RAG (Retrieval-Augmented Generation) chain and tracks metrics.
@@ -185,13 +213,13 @@ def query_llm(query, rag_chain):
         start_time = time.time()
 
         try:
-        latency = time.time() - start_time
-        response = rag_chain.invoke({"question": query})
-        LLM_LATENCY.observe(latency)
-        return response
+                latency = time.time() - start_time
+                response = rag_chain.invoke({"question": query})
+                LLM_LATENCY.observe(latency)
+                return response
         except Exception as e:
-        LLM_ERRORS.inc()
-        raise
+                LLM_ERRORS.inc()
+                raise
 
 
 # --- Keyword Retriever (Simple Implementation) ---
@@ -230,48 +258,129 @@ class KeywordRetriever(BaseRetriever):
 
 
 
-def run_evaluation(rag_chain):
+def generate_qa_pairs(context, llm, num_pairs):
         """
-        Evaluates a Retrieval-Augmented Generation (RAG) chain using mock evaluation data.
-        This function generates evaluation results by invoking the provided RAG chain on a set of predefined
-        question-answer pairs. It collects the generated answers, compares them with ground truth answers,
-        and computes evaluation metrics such as faithfulness, answer relevancy, and context precision.
-        Args:
-                rag_chain: An object representing the RAG chain, which must implement an `invoke` method that
-                                accepts a dictionary with a "question" key and returns a dictionary with an "answer" key.
-        Returns:
-                dict: The evaluation results containing computed metrics for the RAG chain's responses.
+                Uses the LLM to generate QA pairs from a given context/document.
+                Args:
+                context (str): The source text to base the questions on.
+                llm: The loaded LangChain LLM instance.
+                num_pairs (int): Number of QA pairs to generate.
+                Returns:
+                List[dict]: List of {"question": ..., "answer": ...} dicts.
         """
+        prompt = f"""
+        You are a helpful assistant. Given the following document/context, generate{num_pairs}
+        realistic user questions and their correct answers. 
+        Format your response as numbered pairs, like
+        1. Q: ...
+           A: ...
+        2. Q: ...
+           A: ...
+        
+        Document/context:
+        \"\"\"{context}\"\"\"
+        """
+
+        response =  llm.invoke(prompt)
+        text  = response.content if hasattr(response, "content") else response
+        qa_pairs = []
+        import re
+
+        pattern = r"\d+\.\s*Q:\s*(.*?)\s*A:\s*(.*?)(?=\d+\. Q:|$)"
+        matches = re.findall(pattern, text, re.DOTALL)
+        for q, a in matches:
+              qa_pairs.append({'question': q.strip(), "ground_truth": a.strip(), "context": context})
+        return qa_pairs
+
+
+
+
+
+def register_qa_dataset_langsmith(qa_pairs, dataset_name="My_QA_Eval_Dataset_v2"):
+       client = Client()
+
+
+            # 1. Check if dataset already exists
+       existing_datasets = list(client.list_datasets(dataset_name=dataset_name))
+       if existing_datasets:
+                print(f"Dataset '{dataset_name}' already exists in LangSmith (id: {existing_datasets[0].id}). Skipping registration.")
+                return existing_datasets[0]  # Optionally return the existing dataset object
+       examples = []
+       for pair in qa_pairs:
+              examples.append(
+                     {
+                            "inputs": {
+                                        "question": pair['question'],
+                                        "context": pair['context']
+                                        },
+                            "outputs": {
+                                   "answer": pair['ground_truth']
+                            }
+                                
+                     }
+                        )
         
 
-        # TODO: LLM as a Judge
+       dataset = client.create_dataset(
+               dataset_name=dataset_name,
+               description="QA pairs generated from document chunk for evaluation"
+                        )
+       client.create_examples(dataset_id=dataset.id, examples=examples)
+       print(f"Dataset '{dataset_name}' registered with {len(examples)} examples.")
+        
 
-        # Mock evaluation data
 
-        evaluation_data = [
-        {
-                "question": "Who is Arthur Samuel?",
-                "ground_truth": "Arthur Samuel was a pioneer in machine learning.",
-                "contexts": [
-                "Arthur Samuel was one of the pioneers of machine learning and artificial intelligence."
-                ],
-        },
-        # Add more QA pairs as needed
-        ]
+
+@retry(
+              stop=stop_after_attempt(3),
+              wait=wait_exponential(multiplier=1, min=2, max=10), # Exponential Backoff
+              retry=retry_if_exception_type(Exception),
+              reraise=True
+)
+def run_evaluation(config, rag_chain, llm, context, dataset_name):
+        """
+        Evaluates a Retrieval-Augmented Generation (RAG) pipeline using generated QA pairs and specified metrics.
+        Args:
+                config (dict): Configuration dictionary containing evaluation parameters, including the number of documents to use.
+
+                rag_chain: The RAG chain object used to generate answers for evaluation questions.
+                llm: The language model used to generate question-answer pairs from the provided context.
+                context (list): A list of document objects, each containing page content to be used for QA pair generation.
+                dataset_name (str): The name under which the generated QA dataset will be registered.
+        Returns:
+                dict: The evaluation results containing metric scores for faithfulness, answer relevancy, and context precision.
+        Workflow:
+                1. Generates QA pairs from the first `upper_limit` documents in the context using the provided LLM.
+                2. For each generated question, invokes the RAG chain to get an answer.
+                3. Collects the question, ground truth, and generated answer into a results list.
+                4. Converts the results into a pandas DataFrame and then into a Dataset.
+                5. Evaluates the dataset using the specified metrics and returns the evaluation results.
+        """
+
+        evaluation_data = []
+        print("The length of all the docs", len(context))
+        upper_limit = config['eval']['num_docs']
+        for doc in context[:upper_limit]:
+                evaluation_data.extend(generate_qa_pairs(context=doc.page_content, llm=llm, num_pairs=3))
+        print(evaluation_data)
+
+
+        register_qa_dataset_langsmith(evaluation_data, dataset_name=dataset_name)
+
 
         results_eval = []
         for item in evaluation_data:
-        query = item["question"]
-        response = rag_chain.invoke({"question": query})
-        generated_answer = response["answer"]
-        results_eval.append(
-                {
-                "question": query,
-                "ground_truth": item["ground_truth"],
-                "retrieved_contexts": [],  # add more context here,
-                "response": generated_answer,
-                }
-        )
+                query = item["question"]
+                response = rag_chain.invoke({"question": query})
+                generated_answer = response["answer"]
+                results_eval.append(
+                        {
+                        "question": query,
+                        "ground_truth": item["ground_truth"],
+                        "retrieved_contexts": [item['context']], 
+                        "response": generated_answer,
+                        }
+                )
 
         df = pd.DataFrame(results_eval)
         ragas_dataset = Dataset.from_pandas(df)
@@ -281,8 +390,34 @@ def run_evaluation(rag_chain):
         return results_eval
 
 
-if __name__ == "__main__":
+def clean_page_content(text):
+    """
+    Cleans up extracted PDF text by removing lines that are just numbers and excessive whitespace.
+    """
+    import re
+    # Remove lines that contain only numbers or are empty
+    cleaned_lines = [line for line in text.split('\n') if not re.match(r'^\s*\d+\s*$', line) and line.strip()]
+    return '\n'.join(cleaned_lines)
 
+
+def load_config_file(config_path):
+       
+       with open(config_path, 'r') as f:
+              config_dict = yaml.safe_load(f)
+       return config_dict
+
+
+if __name__ == "__main__":
+    
+    config = load_config_file('config.yaml')
+
+    # intialize the tables, if they don't exist
+    create_application_logs()
+    create_document_store()
+
+
+
+    load_env_file(config['paths']['env_path'])
     sl.header("welcome to the 📝PDF bot")
     sl.write("🤖 You can chat by Entering your queries ")
 
@@ -297,7 +432,7 @@ if __name__ == "__main__":
     memory = ConversationBufferMemory(
         memory_key="chat_history", chat_memory=history, return_messages=True
     )
-    llm = load_llm()
+    llm = load_llm(config)
     prompt = load_prompt()
     query = sl.text_input("Enter some text")
 
@@ -308,28 +443,29 @@ if __name__ == "__main__":
     if query:
         # getting only the chunks that are similar to the query for llm to produce the output
 
-        # Not to build
-        # TODO: Finetune retriever
-        all_docs = knowledgeBase.similarity_search("", k=1000)
+        # Finetune retriever
+        all_docs = knowledgeBase.similarity_search("", k=config['search']['keyword_k'])
+
+        for doc in all_docs:
+               doc.page_content = clean_page_content(doc.page_content)
 
         vector_retriever = knowledgeBase.as_retriever(
-            search_type="similarity", search_kwargs={"k": 5}
+            search_type="similarity", search_kwargs={"k": config['search']['k']}
         )
         # keyword_retriever = SimpleKeywordRetriever(all_docs, k=5)
 
         # --- Hybrid Retrieval: Combine results from both retrievers ---
 
-        keyword_retriever = KeywordRetriever(documents=all_docs, k=5)
+        keyword_retriever = KeywordRetriever(documents=all_docs, k=config['search']['k'])
 
         # --- Use EnsembleRetriever for hybrid search ---
         retriever = EnsembleRetriever(
             retrievers=[vector_retriever, keyword_retriever],
-            weights=[0.5, 0.5],  # You can tune the weights
+            weights=[config['search']['weight_semantic'], config['search']['weight_keyword']],
         )
 
 
 
-        # TODO: Add memory to RAG
         rag_chain = ConversationalRetrievalChain.from_llm(
             llm=llm,
             retriever=retriever,
@@ -342,7 +478,7 @@ if __name__ == "__main__":
 
         # Insert into DB
         insert_application_logs(
-            session_id, query, response["answer"], model="gpt-3.5-turbo"
+                session_id, query, response["answer"], model=config['model']['model_name'] # model[model_name]
         )
 
 
@@ -353,13 +489,13 @@ if __name__ == "__main__":
         sl.title("RAG Evaluation")
         if sl.button("Run RAG Evaluation"):
 
-            results = run_evaluation(rag_chain)
+            results = run_evaluation(config, rag_chain, llm, context=all_docs, dataset_name=config['eval']['dataset_name'])
             print(results)
 
             sl.success("Evaluation complete!")
             sl.write("**RAG Evaluation Results:**")
             sl.write(results.to_pandas())
 
-            with open("rag_evaluation_log.txt", "a") as f:
+            with open(config['paths']['evaluation_path'], "a") as f:
                 f.write(str(results) + "\n")
-            sl.info("Results logged to rag_evaluation_log.txt")
+            sl.info(f"Results logged to:  {config['paths']['evaluation_path']}")

@@ -26,7 +26,7 @@ def load_document(filepath):
     elif filepath.lower().endswith(".html"):
         loader = UnstructuredHTMLLoader(filepath)
     else:
-        raise Error("Unsupported file type: {filepath}")
+        raise Exception("Unsupported file type: {filepath}")
     documents = loader.load()
     return documents
 
@@ -46,4 +46,4 @@ def ingest_pdf_to_vectorstore(pdf_path, DB_FAISS_PATH):
 if __name__ == "__main__":
 
     DB_FAISS_PATH = "vectorstore/db_faiss"
-    db = ingest_pdf_to_vectorstore("/.input_pdf.pdf", DB_FAISS_PATH)
+    db = ingest_pdf_to_vectorstore("./input_pdf.pdf", DB_FAISS_PATH)
