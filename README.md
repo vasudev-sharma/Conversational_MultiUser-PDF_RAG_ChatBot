@@ -91,7 +91,7 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 ## Assumptions
 - Retreival on only one document
 - English Language
-- User doesn't ask questions on the responses
+- User doesn't ask questions outside the PDF. Also, the query is well structured and semantically and gramatically correct
 - Size of the document is small. If that's not the case, some recommendations on it 
 
 
@@ -100,14 +100,13 @@ Visit https://github.com/prometheus-operator/kube-prometheus for instructions on
 
 ## Improved Retreival and Ranking
 - Memory of chatbot (conversational aware) [Implemented]
-- Hybrid retreival (Keyword + Dense): [Implemented]
+- Relevance optimization: Hybrid retreival (Keyword + Dense): [Implemented]
   - BM25 + FAISS 
 - Calling the FAISS DB once (remove redundancy) [Implemented]
 - Error handling with Tenacity [Implemented]
 
 
 ### Vector DB
-
 - Conversational RAG with history aware retriever [Implemented]
 ![alt text](images/mem1.png)
 ![alt text](images/mem2.png)
