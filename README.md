@@ -12,7 +12,7 @@
 
 
 ## Technologies
-- Monitoring + logging: Grafana + Promethues (metrics) + LangSmith(prompts / evaluation data / tracing)
+- Monitoring + logging: Grafana + Prometheus (metrics) + LangSmith(prompts / evaluation data / tracing)
 - Database: SQLite
 - Deployment: Minikube (k8s) + Docker
 - Evaluation: RAGAS + Langsmith
