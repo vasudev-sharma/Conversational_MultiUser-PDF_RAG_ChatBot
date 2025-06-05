@@ -11,6 +11,13 @@
 2. `streamlit run streamlit_apply.py`
 
 
+## Technologies
+- Monitoring + logging: Grafana + Promethues (metrics) + LangSmith(prompts / evaluation data / tracing)
+- Database: SQLite
+- Deployment: Minikube (k8s) + Docker
+- Evaluation: RAGAS + Langsmith
+- Retrieval and search : FAISS  for hybrid retrieval 
+
 # Deployment
 
 ## Deployment script (Minikube)
